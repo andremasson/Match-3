@@ -65,7 +65,7 @@ public class Tile : MonoBehaviour {
         }
         else
         {
-            if (previousSelected == null)
+            if (previousSelected == null) // touch start?
             {
                 Select();
             }
@@ -150,7 +150,7 @@ public class Tile : MonoBehaviour {
         }
     }
 
-    private void ClearAllMatches()
+    public void ClearAllMatches()
     {
         if (render.sprite == null)
         {
@@ -163,6 +163,8 @@ public class Tile : MonoBehaviour {
         {
             render.sprite = null;
             matchFound = false;
+            StopCoroutine(BoardManager.instance.FindNullTiles());
+            StartCoroutine(BoardManager.instance.FindNullTiles());
             SFXManager.instance.PlaySFX(Clip.Clear);
         }
     }
