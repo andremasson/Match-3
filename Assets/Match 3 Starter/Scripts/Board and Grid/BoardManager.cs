@@ -25,25 +25,86 @@ using System.Collections;
 using System.Collections.Generic;
 
 public class BoardManager : MonoBehaviour {
-	public static BoardManager instance;
-	public List<Sprite> characters = new List<Sprite>();
-	public GameObject tile;
-	public int xSize, ySize;
+    public static BoardManager instance;
+    public List<Sprite> characters = new List<Sprite>();
+    public GameObject tileBackground;
+    public GameObject tile;
+    public int xSize, ySize;
 
-	private GameObject[,] tiles;
+    private enum CellType { Invalid = -1, Valid = -2, Spawn = -3, Random = -4 };
 
-	public bool IsShifting { get; set; }
+    private GameObject[,] tiles;
+    private int[,] board;
 
-	void Start () {
-		instance = GetComponent<BoardManager>();
+    public bool IsShifting { get; set; }
+    public float tileMoveSpeed = .3f;
+    public float tilePlungeSpeed = .1f;
+
+    void Start() {
+        instance = GetComponent<BoardManager>();
+
+        board = new int[,] {    { -1, -3, -3, -1, -3, -3, -1 },
+                                { -3, -4, -4, -3, -4, -4, -3 },
+                                { -4, -4, -4, -4, -4, -4, -4 },
+                                { -4, -4, -4, -4, -4, -4, -4 },
+                                { -4, -4, -4, -4, -4, -4, -4 },
+                                { -1, -4, -4, -1, -4, -4, -1 },
+                                { -4, -4, -4, -4, -4, -4, -4 },
+                                { -4, -4, -4, -4, -4, -4, -4 },
+                                { -4, -4, -4, -4, -4, -4, -4 },
+                                { -1, 2, 2, 2, -4, -4, -1 },
+        };
 
 		Vector2 offset = tile.GetComponent<SpriteRenderer>().bounds.size;
         CreateBoard(offset.x, offset.y);
     }
 
-	private void CreateBoard (float xOffset, float yOffset) {
-		tiles = new GameObject[xSize, ySize];
+    public void SpawnTile(Vector3 position)
+    {
+        Debug.Log("Spawn Tile em: " + position);
+        RaycastHit2D hit = Physics2D.Raycast(position, Vector2.up);
+        if (hit.collider != null)
+        {
+            hit.collider.gameObject.GetComponent<Tile>().Plunge();
+        }
+    }
 
+    private void CreateBoard (float xOffset, float yOffset)
+    {        
+        Vector2 startPos = new Vector2()
+        {
+            x = transform.position.x - ((board.GetLength(1) / 2.0f) * xOffset) + (xOffset / 2.0f),
+            y = board.GetLength(0) / 2.0f * yOffset + transform.position.y
+        };
+        Vector2 currPos = startPos;
+        int slot;        
+        for (int x = 0; x < board.GetLength(0); x++)
+        {
+            currPos.x = startPos.x;
+            for (int y = 0; y < board.GetLength(1); y++)
+            {
+                slot = board[x,y];
+                if (slot != (int)CellType.Invalid)
+                {
+                    GameObject newTile = Instantiate(tile, new Vector3(currPos.x, currPos.y), tile.transform.rotation);
+                    if (slot == (int)CellType.Random)
+                    {
+                        newTile.GetComponent<SpriteRenderer>().sprite = characters[Random.Range(0, characters.Count)];
+                    }
+                    else if (slot >= 0)
+                    {
+                        newTile.GetComponent<SpriteRenderer>().sprite = characters[slot];
+                    }
+                }
+                currPos.x += xOffset;
+            }
+            currPos.y -= yOffset;
+        }
+    }
+    
+    private void CreateBoard_old (float xOffset, float yOffset) {
+		tiles = new GameObject[xSize, ySize];
+        Debug.Log("Largura padrao: " + xOffset);
         Sprite[] previousLeft = new Sprite[ySize];
         Sprite previousBelow = null;
 
@@ -63,7 +124,7 @@ public class BoardManager : MonoBehaviour {
                 newTile.transform.parent = transform;
                 Sprite newSprite = possibleCharacters[Random.Range(0, possibleCharacters.Count)];
                 newTile.GetComponent<SpriteRenderer>().sprite = newSprite;
-
+                Debug.Log("Largura: " + newSprite.bounds.size.x);
                 previousBelow = newSprite;
                 previousLeft[y] = newSprite;
 			}
@@ -93,6 +154,11 @@ public class BoardManager : MonoBehaviour {
         }
     }
 
+    public void PlungeTiles()
+    {
+
+    }
+
     private IEnumerator ShiftTilesDown(int x, int yStart, float shiftDelay = .03f)
     {
         IsShifting = true;
@@ -116,14 +182,14 @@ public class BoardManager : MonoBehaviour {
             for (int k = 0; k < renders.Count - 1; k++)
             {
                 renders[k].sprite = renders[k + 1].sprite;
-                renders[k + 1].sprite = GetnewSprite(x, ySize - 1);
+                renders[k + 1].sprite = GetNewSprite(x, ySize - 1);
             }
         }
 
         IsShifting = false;
     }
 
-    private Sprite GetnewSprite(int x, int y)
+    private Sprite GetNewSprite(int x, int y)
     {
         List<Sprite> possibleCharacters = new List<Sprite>();
         possibleCharacters.AddRange(characters);
