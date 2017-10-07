@@ -36,7 +36,7 @@ public class GUIManager : MonoBehaviour {
 
 	private int score;
     private int moveCounter;
-    public int Scrore
+    public int Score
     {
         get
         {

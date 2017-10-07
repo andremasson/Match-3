@@ -29,9 +29,14 @@ public class SFXManager : MonoBehaviour {
 
 	private AudioSource[] sfx;
 
-	// Use this for initialization
-	void Start () {
-		instance = GetComponent<SFXManager>();
+    private void Awake()
+    {
+        instance = GetComponent<SFXManager>();
+    }
+
+    // Use this for initialization
+    void Start ()
+    {
 		sfx = GetComponents<AudioSource>();
     }
 
