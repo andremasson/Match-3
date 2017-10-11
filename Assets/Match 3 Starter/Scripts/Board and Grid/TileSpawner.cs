@@ -1,71 +1,38 @@
-﻿using System.Collections;
+﻿/*
+ * Copyright (c) 2017 Dread Pixel
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class TileSpawner : MonoBehaviour
 {
     public GameObject tile;
-    private Vector2 offset;
-    float lastUpdate = 0.0f;
-    float updateSpeed = .1f;
-
-    private void Start()
-    {
-        offset = tile.GetComponent<SpriteRenderer>().bounds.size;
-    }
-
-    private void FixedUpdate()
-    {
-        if (lastUpdate > updateSpeed)
-        {
-            lastUpdate = 0.0f;
-            //CheckEmptyCell();
-        }
-        else
-        {
-            lastUpdate += Time.deltaTime;
-        }
-    }
-
-    private GameObject GetAdjacent(Vector2 castDir)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir);
-        if (hit.collider != null)
-        {
-            return hit.collider.gameObject;
-        }
-        return null;
-    }
-
-    private float GetAdjacentDistance(Vector2 castDir)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir);
-        if (hit.collider != null)
-        {
-            return hit.distance;
-        }
-        return float.NaN;
-    }
-
-    public void CheckEmptyCell()
-    {
-        float dist = GetAdjacentDistance(Vector2.down);
-        if (dist >= offset.y)
-        {
-            SpawnTile();
-        }
-    }
-
+    
     public GameObject SpawnAndReturnTile()
     {
         GameObject newTile = Instantiate(tile, transform.localPosition, tile.transform.rotation, BoardManager.instance.transform);
         newTile.GetComponent<SpriteRenderer>().sprite = BoardManager.instance.GetNewSprite();
         return newTile;
     }
-
-    public void SpawnTile()
-    {
-        GameObject newTile = SpawnAndReturnTile();
-        //newTile.GetComponent<Tile>().Plunge();
-    }
+    
 }

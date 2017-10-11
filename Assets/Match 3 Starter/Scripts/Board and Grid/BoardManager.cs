@@ -41,6 +41,10 @@ public class BoardManager : MonoBehaviour {
     public float deleteHighlightTime = 0.3f;
     public bool autoMatch = true;
 
+    public int deletedCount = 0;
+    public int movingCount = 0;
+    public LayerMask maskTile = 1 << 8;
+
     public Text texto;
 
     // Private
@@ -50,16 +54,13 @@ public class BoardManager : MonoBehaviour {
 
     private Vector2 touchOrigin;
     private GameObject selectedTile;
-    private LayerMask maskTile = 1 << 8;
 
     private Vector2 directionAxis = Vector2.zero;
     private Collider2D touchCollider;
     private Vector3 worldPosition;
 
-    private int movingCount = 0;
-    private int deletedCount = 0;
+    private int missCount = 0;
 
-    private Vector2[] adjacentDirections = new Vector2[] { Vector2.up, Vector2.down, Vector2.left, Vector2.right };
     private enum CellType { Invalid = -1, Valid = -2, Spawn = -3, Random = -4 };
 
     private void Awake()
@@ -72,6 +73,7 @@ public class BoardManager : MonoBehaviour {
         Vector2 offset = tile.GetComponent<SpriteRenderer>().bounds.size;
         CreateBoard(offset.x, offset.y);
         selectedTile = null;
+        missCount = 0;
     }
 
     private void CreateBoard(float xOffset, float yOffset)
@@ -166,12 +168,12 @@ public class BoardManager : MonoBehaviour {
                     Debug.Log("X: " + x + " - Y: " + y);
                     Debug.Log("Valor do Array: " + tiles[x, y]);
                     Debug.Log("Objeto igual ao array: " + (selectedTile == tiles[x, y]));
-                    ToogleTileSelection(selectedTile);
+                    selectedTile.GetComponent<Tile>().ToogleTileSelection();
                 }
                 else
                 {
                     GameObject newSelectedTile = touchCollider.transform.gameObject;
-                    ToogleTileSelection(selectedTile);
+                    selectedTile.GetComponent<Tile>().ToogleTileSelection();
                     SwitchTiles(selectedTile, newSelectedTile);
 
                     selectedTile = null;
@@ -193,14 +195,14 @@ public class BoardManager : MonoBehaviour {
                 if (touchCollider)
                 {
                     selectedTile = touchCollider.transform.gameObject;
-                    ToogleTileSelection(selectedTile);
+                    selectedTile.GetComponent<Tile>().ToogleTileSelection();
                 }
             }
             else if (myTouch.phase == TouchPhase.Ended)
             {
                 if (selectedTile != null)
                 {
-                    ToogleTileSelection(selectedTile);
+                    selectedTile.GetComponent<Tile>().ToogleTileSelection();
                     Vector2 touchEnd = myTouch.position;
                     float xAbs = Mathf.Abs(touchEnd.x - touchOrigin.x);
                     float yAbs = Mathf.Abs(touchEnd.y - touchOrigin.y);
@@ -215,7 +217,7 @@ public class BoardManager : MonoBehaviour {
                         directionAxis.y = touchEnd.y - touchOrigin.y;
                     }
                     
-                    GameObject adjacentObject = GetAdjacentTile(selectedTile.transform, directionAxis);
+                    GameObject adjacentObject = selectedTile.GetComponent<Tile>().GetAdjacent(directionAxis);
                     if (adjacentObject)
                     {
                         SwitchTiles(selectedTile, adjacentObject);
@@ -273,10 +275,9 @@ public class BoardManager : MonoBehaviour {
 
     private void SwitchTiles(GameObject tileA, GameObject tileB, bool clearAfterMove = true)
     {
-        List<GameObject> adjacentTiles = GetAllAdjacentTiles(tileA.transform);
+        List<GameObject> adjacentTiles = tileA.GetComponent<Tile>().GetAllAdjacentTiles();
         if (!adjacentTiles.Contains(tileB)) return;
-
-
+        
         Tile tileAObj = tileA.GetComponent<Tile>();
         Tile tileBObj = tileB.GetComponent<Tile>();
         int[] newPositionInArrayTileA = new int[2];
@@ -297,114 +298,25 @@ public class BoardManager : MonoBehaviour {
 
         tileAObj.fixedPosition = newPositionTileA;
         tileBObj.fixedPosition = newPositionTileB;
-        
-        movingCount += 2;
-        StartCoroutine(AnimateMove(tileAObj, newPositionTileA));
-        StartCoroutine(AnimateMove(tileBObj, newPositionTileB));
+
+        tileAObj.TransportTile(newPositionTileA);
+        tileBObj.TransportTile(newPositionTileB);
         if (autoMatch && clearAfterMove)
         {
-            GUIManager.instance.MoveCounter--;
             StartCoroutine(ClearMatchesForSwitchTile(tileAObj, tileBObj));
         }
     }
-
-    private void TransportTile(Tile tile, Vector3 endPosition)
-    {
-        movingCount++;
-        StartCoroutine(AnimateMove(tile, endPosition));
-    }
-
-    private IEnumerator AnimateMove(Tile tile, Vector3 endPosition)
-    {
-        Vector3 startPosition = tile.transform.position;
-        if (!tile.isMoving)
-        {
-            tile.isMoving = true;
-            float delta = 0.0f;
-            float rate = 1 / tileMoveSpeed;
-            while (delta < 1)
-            {
-                delta += Time.deltaTime * rate;
-                tile.transform.position = Vector3.Lerp(startPosition, endPosition, delta);
-                yield return 0;
-            }
-            tile.isMoving = false;
-            movingCount--;            
-        }
-
-        yield return 0;
-    }
-
-    private void ToogleTileSelection(GameObject tile)
-    {
-        Tile tileObj = tile.GetComponent<Tile>();
-        tileObj.isSelected = !tileObj.isSelected;
-        if (tileObj.isSelected)
-        {
-            tile.GetComponent<SpriteRenderer>().color = Tile.selectedColor;
-            SFXManager.instance.PlaySFX(Clip.Select);
-        }
-        else
-        {
-            tile.GetComponent<SpriteRenderer>().color = Color.white;
-        }
-    }
-
-    private bool CanMoveTo(GameObject tile, Vector2 direction)
-    {
-        return true;
-    }
-    
-    private List<Tile> GetAllAdjacentTiles(Tile tile)
-    {
-        List<Tile> adjacentTiles = new List<Tile>();
-        for (int i = 0; i < adjacentDirections.Length; i++)
-        {
-            adjacentTiles.Add(GetAdjacentTile(tile, adjacentDirections[i]));
-        }
-        return adjacentTiles;
-    }
-
-    private List<GameObject> GetAllAdjacentTiles(Transform transform)
-    {
-        List<GameObject> adjacentTiles = new List<GameObject>();
-        for (int i = 0; i < adjacentDirections.Length; i++)
-        {
-            adjacentTiles.Add(GetAdjacentTile(transform, adjacentDirections[i]));
-        }
-        return adjacentTiles;
-    }
-
-    private GameObject GetAdjacentTile(Transform transform, Vector2 castDir)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir, tiles[0, 0].GetComponent<SpriteRenderer>().sprite.bounds.size.x, maskTile);
-        if (hit.collider != null)
-        {
-            return hit.collider.gameObject;
-        }
-        return null;
-    }
-
-    private Tile GetAdjacentTile(Tile tile, Vector2 castDir)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(tile.transform.position, castDir, tiles[0, 0].GetComponent<SpriteRenderer>().sprite.bounds.size.x, maskTile);
-        if (hit.collider != null)
-        {
-            return hit.collider.gameObject.GetComponent<Tile>();
-        }
-        return null;
-    }
-
+        
     private IEnumerator ClearMatchesForSwitchTile(Tile tileA, Tile tileB)
     {
         yield return new WaitUntil(() => movingCount == 0);
 
         List<Tile> matchingTiles = new List<Tile>();
 
-        matchingTiles.AddRange(ClearMatch(tileA, new Vector2[2] { Vector2.left, Vector2.right }));
-        matchingTiles.AddRange(ClearMatch(tileA, new Vector2[2] { Vector2.up, Vector2.down }));
-        matchingTiles.AddRange(ClearMatch(tileB, new Vector2[2] { Vector2.left, Vector2.right }));
-        matchingTiles.AddRange(ClearMatch(tileB, new Vector2[2] { Vector2.up, Vector2.down }));
+        matchingTiles.AddRange(tileA.ClearMatch(new Vector2[2] { Vector2.left, Vector2.right }));
+        matchingTiles.AddRange(tileA.ClearMatch(new Vector2[2] { Vector2.up, Vector2.down }));
+        matchingTiles.AddRange(tileB.ClearMatch(new Vector2[2] { Vector2.left, Vector2.right }));
+        matchingTiles.AddRange(tileB.ClearMatch(new Vector2[2] { Vector2.up, Vector2.down }));
 
         if (matchingTiles.Count > 0)
         {
@@ -414,118 +326,37 @@ public class BoardManager : MonoBehaviour {
             for (int i = 0; i < matchingTiles.Count; i++)
             {
                 GUIManager.instance.Score += matchingTiles[i].points;
-                DestroyTile(matchingTiles[i]);
+                matchingTiles[i].DestroyTile();
             }
+            GUIManager.instance.MoveCounter--;
             ClearForPlunge();
         }
         else
         {
+            missCount++;
             StartCoroutine(UndoSwitch(tileA.gameObject, tileB.gameObject));
         }
     }
-
-    private IEnumerator ClearAllMatches(Tile tile)
-    {
-        yield return new WaitUntil(() => movingCount == 0);
-
-        List<Tile> matchingTiles = new List<Tile>();
-
-        matchingTiles.AddRange(ClearMatch(tile, new Vector2[2] { Vector2.left, Vector2.right }));
-        matchingTiles.AddRange(ClearMatch(tile, new Vector2[2] { Vector2.up, Vector2.down }));
-
-        if (matchingTiles.Count > 0)
-        {
-            tiles[tile.positionInArray.x, tile.positionInArray.y] = tile.gameObject;
-            SFXManager.instance.PlaySFX(Clip.Clear);
-            for (int i = 0; i < matchingTiles.Count; i++)
-            {
-                GUIManager.instance.Score += matchingTiles[i].points;
-                DestroyTile(matchingTiles[i]);
-            }
-            ClearForPlunge();
-        }
-    }
-
-    private List<Tile> ClearMatch(Tile tile, Vector2[] paths)
-    {
-        List<Tile> matchingTiles = new List<Tile>();
-
-        for (int i = 0; i < paths.Length; i++)
-        {
-            matchingTiles.AddRange(FindMatch(tile, paths[i]));
-        }
-
-        if (matchingTiles.Count >= 2)
-        {   
-            matchingTiles.Add(tile);
-        }
-        else
-        {
-            matchingTiles.Clear();
-        }
-        return matchingTiles;
-    }
-    
-    private List<Tile> FindMatch(Tile tile, Vector2 castDir)
-    {
-        List<Tile> matchingTiles = new List<Tile>();
-        if (tile != null)
-        {
-            RaycastHit2D hit = Physics2D.Raycast(tile.transform.position, castDir, tiles[0, 0].GetComponent<SpriteRenderer>().sprite.bounds.size.x, maskTile);
-            while (hit && hit.collider.gameObject.GetComponent<SpriteRenderer>().sprite == tile.render.sprite)
-            {
-                matchingTiles.Add(hit.collider.gameObject.GetComponent<Tile>());
-                hit = Physics2D.Raycast(hit.collider.transform.position, castDir, tiles[0, 0].GetComponent<SpriteRenderer>().sprite.bounds.size.x, maskTile);
-            }
-        }
-        return matchingTiles;
-    }
-
-    private List<Tile> FindAllMatches(Tile tile)
-    {
-        List<Tile> matchingTiles = new List<Tile>();
-        for(int i = 0; i < adjacentDirections.Length; i++)
-        {
-            matchingTiles.AddRange(FindMatch(tile, adjacentDirections[i]));
-        }
-        return matchingTiles;
-    }
-
+        
     private IEnumerator UndoSwitch(GameObject tileA, GameObject tileB)
     {
-        ToogleTileSelection(tileA);
-        ToogleTileSelection(tileB);
+        tileA.GetComponent<Tile>().ToogleTileSelection();
+        tileB.GetComponent<Tile>().ToogleTileSelection();
         yield return new WaitForSeconds(0.3f);
         SFXManager.instance.PlaySFX(Clip.Swap);
-        ToogleTileSelection(tileA);
-        ToogleTileSelection(tileB);
+        tileA.GetComponent<Tile>().ToogleTileSelection();
+        tileB.GetComponent<Tile>().ToogleTileSelection();
         SwitchTiles(tileA.gameObject, tileB.gameObject, false);
     }
 
-    private void DestroyTile(Tile tile)
-    {
-        if (tile && tile.gameObject)
-        {
-            deletedCount++;
-            StartCoroutine(AnimateDestroyTile(tile));
-        }
-    }
-
-    private IEnumerator AnimateDestroyTile(Tile tile)
-    {
-        tile.GetComponent<SpriteRenderer>().color = Tile.deleteHighlightColor;
-        yield return new WaitForSeconds(deleteHighlightTime);
-        if (tile)
-        {
-            tiles[tile.positionInArray.x, tile.positionInArray.y] = null;
-            Destroy(tile.gameObject);
-        }
-        StartCoroutine(WaitForPlunge());
-    }
-
-    private void ClearForPlunge()
+    public void ClearForPlunge()
     {
         deletedCount = 0;
+    }
+
+    public void Plunge()
+    {
+        StartCoroutine(WaitForPlunge());
     }
 
     private IEnumerator WaitForPlunge()
@@ -537,12 +368,13 @@ public class BoardManager : MonoBehaviour {
         else
         {
             yield return new WaitUntil(() => deletedCount == 0);
-            Plunge();
+            PlungeAll();
         }
     }
 
-    private void Plunge()
+    private void PlungeAll()
     {
+        Debug.Log("Plunge");
         int countEmpty = 0;
         for (int x = 0; x < xSize; x++)
         {
@@ -597,7 +429,7 @@ public class BoardManager : MonoBehaviour {
                 newTileObj.positionInArray = new Tile.IntVector2(x, y);
                 tiles[x, y] = newTile;
 
-                TransportTile(newTileObj, endPosition);
+                newTileObj.TransportTile(endPosition);
                 movedTiles.Add(newTile);
             }
         }
@@ -606,7 +438,7 @@ public class BoardManager : MonoBehaviour {
         {
             for(int i = 0; i < movedTiles.Count; i++)
             {
-                StartCoroutine(ClearAllMatches(movedTiles[i].GetComponent<Tile>()));
+                StartCoroutine(movedTiles[i].GetComponent<Tile>().ClearAllMatches());
             }
         }
     }

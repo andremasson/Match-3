@@ -26,24 +26,15 @@ using System.Collections.Generic;
 
 public class Tile : MonoBehaviour
 {
-	public static Color selectedColor = new Color(.5f, .5f, .5f, 1.0f);
+    private Vector2[] adjacentDirections = new Vector2[] { Vector2.up, Vector2.down, Vector2.left, Vector2.right };
+
+    public static Color selectedColor = new Color(.5f, .5f, .5f, 1.0f);
     public static Color deleteHighlightColor = Color.yellow;
-    //private static GameObject previousSelected = null;
-
-    public Transform target;
-
+    
     public SpriteRenderer render;
-	public bool isSelected = false;
+    public bool isSelected = false;
     public int points = 30;
-
-	private Vector2[] adjacentDirections = new Vector2[] { Vector2.up, Vector2.down, Vector2.left, Vector2.right };
-
-    private bool matchFound = false;
-    private float animationTime;
-
-    float lastUpdate = 0.0f;
-    float updateSpeed = .1f;
-
+    
     public bool isMoving;
     public struct IntVector2
     {
@@ -56,8 +47,7 @@ public class Tile : MonoBehaviour
     }
 
     public IntVector2 positionInArray;
-    private Vector2 touchOrigin;
-
+    
     public Vector3 fixedPosition;
     
     void Awake() {
@@ -65,153 +55,9 @@ public class Tile : MonoBehaviour
         isMoving = false;
     }
 
-    private void Start()
+    public float GetAdjacentDistance(Vector2 castDir)
     {
-        animationTime = BoardManager.instance.tileMoveSpeed;
-    }
-
-    private void FixedUpdate()
-    {
-        if (lastUpdate > updateSpeed)
-        {
-            lastUpdate = 0.0f;
-            //Plunge();
-        }
-        else
-        {
-            lastUpdate += Time.deltaTime;
-        }
-    }
-
-    /*
-    public void Select() {
-		//isSelected = true;
-		render.color = selectedColor;
-		//previousSelected = gameObject;
-		SFXManager.instance.PlaySFX(Clip.Select);
-	}
-
-	public void Deselect() {
-		//isSelected = false;
-		render.color = Color.white;
-		//previousSelected = null;
-	}
-    */
-
-        /*
-    public void MoveTo(Vector3 endPosition, float speed = 0.0f)
-    {
-        if (speed == 0.0f)
-        {
-            speed = animationTime;
-        }
-        Vector3 startPosition = transform.localPosition;        
-        StartCoroutine(AnimateMove(startPosition, endPosition, speed));
-        BoardManager.instance.tiles[PositionInArray.x, PositionInArray.y] = gameObject;
-    }
-
-    private IEnumerator AnimateMove(Vector3 startPosition, Vector3 endPosition, float time)
-    {
-        if (!isMoving)
-        {
-            isMoving = true;
-            BoardManager.instance.movingCount++;
-            float i = 0.0f;
-            float rate = 1 / time;
-            while (i < 1)
-            {
-                i += Time.deltaTime * rate;
-                transform.localPosition = Vector3.Lerp(startPosition, endPosition, i);
-                yield return 0;
-            }
-            isMoving = false;
-            if (BoardManager.instance.movingCount > 0) BoardManager.instance.movingCount--;
-            
-            StartCoroutine(ClearAllMatches());
-            Plunge();
-        }
-        yield return 0;
-    }
-    */
-    
-    /*
-    private void OnMouseDown()
-    {
-        if (render.sprite == null || BoardManager.instance.IsShifting)
-        {
-            return;
-        }
-
-        if (isSelected)
-        {
-            Deselect();
-        }
-        else
-        {
-            if (previousSelected == null) // touch start?
-            {
-                Select();
-            }
-            else
-            {
-                if (GetAllAdjacentTiles().Contains(previousSelected.gameObject))
-                {
-                    SwapTile(previousSelected);
-                    previousSelected.GetComponent<Tile>().Deselect();
-                }
-                else
-                {
-                    previousSelected.GetComponent<Tile>().Deselect();
-                    Select();
-                }
-            }
-        }
-    }
-    */
-
-    /*
-    public void SwapTile(Vector2 direction)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, direction);
-        if (hit.collider != null)
-        {
-            SwapTile(hit.collider.gameObject);
-        }
-    }
-    */
-    
-    /*
-    public void SwapTile(GameObject anotherObject)
-    {
-        Tile anotherTile = anotherObject.GetComponent<Tile>();
-        if (render.sprite == anotherTile.GetComponent<SpriteRenderer>().sprite)
-        {            
-            return; 
-        }
-
-        if (!GetAllAdjacentTiles().Contains(anotherObject))
-        {
-            return;
-        }
-
-        IntVector2 tempPos = PositionInArray;
-        Vector3 tempFixedPosition = fixedPosition;
-        PositionInArray = anotherTile.PositionInArray;
-        fixedPosition = anotherTile.fixedPosition;
-        anotherTile.PositionInArray = tempPos;
-        anotherTile.fixedPosition = tempFixedPosition;
-        
-        anotherTile.MoveTo(fixedPosition, BoardManager.instance.tileMoveSpeed);
-        MoveTo(anotherTile.fixedPosition, BoardManager.instance.tileMoveSpeed);
-        
-        GUIManager.instance.MoveCounter--;
-        SFXManager.instance.PlaySFX(Clip.Swap);
-    }
-    */
-   
-    private float GetAdjacentDistance(Vector2 castDir)
-    {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir);
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir, render.sprite.bounds.size.x, BoardManager.instance.maskTile);
         if (hit.collider != null)
         {
             return hit.distance;
@@ -219,9 +65,9 @@ public class Tile : MonoBehaviour
         return float.NaN;
     }
 
-    private GameObject GetAdjacent(Vector2 castDir)
+    public GameObject GetAdjacent(Vector2 castDir)
     {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir);
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir, render.sprite.bounds.size.x, BoardManager.instance.maskTile);
         if (hit.collider != null)
         {
             return hit.collider.gameObject;
@@ -229,7 +75,17 @@ public class Tile : MonoBehaviour
         return null;
     }
 
-    private List<GameObject> GetAllAdjacentTiles()
+    public Tile GetAdjacentTile(Vector2 castDir)
+    {
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir, render.sprite.bounds.size.x, BoardManager.instance.maskTile);
+        if (hit.collider != null)
+        {
+            return hit.collider.gameObject.GetComponent<Tile>();
+        }
+        return null;
+    }
+
+    public List<GameObject> GetAllAdjacentTiles()
     {
         List<GameObject> adjacentTiles = new List<GameObject>();
         for (int i = 0; i < adjacentDirections.Length; i++)
@@ -239,21 +95,21 @@ public class Tile : MonoBehaviour
         return adjacentTiles;
     }
 
-    private List<GameObject> FindMatch(Vector2 castDir)
+    public List<Tile> FindMatch(Vector2 castDir)
     {
-        List<GameObject> matchingTiles = new List<GameObject>();
+        List<Tile> matchingTiles = new List<Tile>();
         RaycastHit2D hit = Physics2D.Raycast(transform.position, castDir);
         while (hit.collider != null && hit.collider.gameObject.tag == "Tile" && hit.collider.GetComponent<SpriteRenderer>().sprite == render.sprite)
         {
-            matchingTiles.Add(hit.collider.gameObject);
+            matchingTiles.Add(hit.collider.gameObject.GetComponent<Tile>());
             hit = Physics2D.Raycast(hit.collider.transform.position, castDir);
         }
         return matchingTiles;
     }
 
-    public List<GameObject> FindAllMatches()
+    public List<Tile> FindAllMatches()
     {
-        List<GameObject> matchingTiles = new List<GameObject>();
+        List<Tile> matchingTiles = new List<Tile>();
         Vector2[] directions = new Vector2[4] { Vector2.left, Vector2.right, Vector2.up, Vector2.down };
         for (int i = 0; i < directions.Length; i++)
         {
@@ -262,76 +118,107 @@ public class Tile : MonoBehaviour
         return matchingTiles;
     }
 
-    /*
-    private void ClearMatch(Vector2[] paths)
+    public void ToogleTileSelection()
     {
-        List<GameObject> matchingTiles = new List<GameObject>();
+        isSelected = !isSelected;
+        if (isSelected)
+        {
+            render.color = Tile.selectedColor;
+            SFXManager.instance.PlaySFX(Clip.Select);
+        }
+        else
+        {
+            render.color = Color.white;
+        }
+    }
+
+    public void DestroyTile()
+    {
+        BoardManager.instance.deletedCount++;
+        StartCoroutine(AnimateDestroyTile());
+    }
+
+    private IEnumerator AnimateDestroyTile()
+    {
+        render.color = deleteHighlightColor;
+        yield return new WaitForSeconds(BoardManager.instance.deleteHighlightTime);
+        
+        BoardManager.instance.tiles[positionInArray.x, positionInArray.y] = null;
+        BoardManager.instance.Plunge();
+        Destroy(gameObject);
+    }
+
+    public List<Tile> ClearMatch(Vector2[] paths)
+    {
+        List<Tile> matchingTiles = new List<Tile>();
+
         for (int i = 0; i < paths.Length; i++)
         {
             matchingTiles.AddRange(FindMatch(paths[i]));
         }
+
         if (matchingTiles.Count >= 2)
         {
-            for (int i = 0; i < matchingTiles.Count; i++)
-            {
-                //matchingTiles[i].GetComponent<SpriteRenderer>().sprite = null;
-                matchingTiles[i].GetComponent<Tile>().DestroyTile();
-            }
-            
-            matchFound = true;
+            matchingTiles.Add(this);
         }
-    }
-    */
-    
-    /*
-    public void DestroyTile()
-    {
-        if (isMoving)
+        else
         {
-            BoardManager.instance.movingCount--;
+            matchingTiles.Clear();
         }
-        render.sprite = null;
-        BoardManager.instance.tiles[PositionInArray.x, PositionInArray.y] = null;
-        //BoardManager.instance.PlungeTiles();
-        Destroy(this.gameObject);
+        return matchingTiles;
     }
-    */
-    
-    /*
+
     public IEnumerator ClearAllMatches()
     {
-        
         yield return new WaitUntil(() => BoardManager.instance.movingCount == 0);
 
-        ClearMatch(new Vector2[2] { Vector2.left, Vector2.right });
-        ClearMatch(new Vector2[2] { Vector2.up, Vector2.down });
-        if (matchFound)
+        List<Tile> matchingTiles = new List<Tile>();
+
+        matchingTiles.AddRange(ClearMatch(new Vector2[2] { Vector2.left, Vector2.right }));
+        matchingTiles.AddRange(ClearMatch(new Vector2[2] { Vector2.up, Vector2.down }));
+
+        if (matchingTiles.Count > 0)
         {
-            render.sprite = null;
-            matchFound = false;
-            //StopCoroutine(BoardManager.instance.ShiftTilesDown());
-            //StartCoroutine(BoardManager.instance.ShiftTilesDown());
-            
             SFXManager.instance.PlaySFX(Clip.Clear);
-            DestroyTile();
+            for (int i = 0; i < matchingTiles.Count; i++)
+            {
+                GUIManager.instance.Score += matchingTiles[i].points;
+                matchingTiles[i].DestroyTile();
+            }
+            BoardManager.instance.ClearForPlunge();
         }
     }
-    
-    public void Plunge() 
+
+    private IEnumerator AnimateMove( Vector3 endPosition)
     {
-        float dist = GetAdjacentDistance(Vector2.down);
-        if (dist >= render.bounds.size.y)
+        Vector3 startPosition = transform.position;
+        if (!isMoving)
         {
-            Vector3 endPosition = transform.localPosition;
-            endPosition.y -= render.bounds.size.y;
-
-            //GameObject adjacentTile = GetAdjacent(Vector2.down);
-            fixedPosition = endPosition;
-
-            //PositionInArray.y += 1;
-            //BoardManager.instance.tiles[PositionInArray.x, PositionInArray.y] = gameObject;
-            MoveTo(endPosition, BoardManager.instance.tilePlungeSpeed);
+            isMoving = true;
+            float delta = 0.0f;
+            float rate = 1 / BoardManager.instance.tileMoveSpeed;
+            while (delta < 1)
+            {
+                delta += Time.deltaTime * rate;
+                transform.position = Vector3.Lerp(startPosition, endPosition, delta);
+                yield return 0;
+            }
+            isMoving = false;
+            BoardManager.instance.movingCount--;
         }
+
+        yield return 0;
     }
-    */
+
+    public void TransportTile(Vector3 endPosition)
+    {
+        BoardManager.instance.movingCount++;
+        StartCoroutine(AnimateMove(endPosition));
+    }
+
+    public bool CanMoveTo(Vector2 direction)
+    {
+        // Dummy for now
+        return true;
+    }
 }
